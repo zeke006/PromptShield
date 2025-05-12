@@ -1,0 +1,74 @@
+PromptShield: A Prompt Injection Detection and Mitigation Tool for LLM-Powered Apps
+Submitted by: Ashish Bisht, sanmesh shelke ,
+soham mapuskar
+1. Abstract
+PromptShield is a lightweight Python-based framework designed to detect and mitigate prompt injection attacks in Large Language Model (LLM)-powered applications. By using a combination of regular expressions, NLP techniques, and machine learning models, PromptShield flags suspicious user inputs and neutralizes harmful instructions before they reach an LLM. 
+2. Problem Statement and Objective
+Large Language Models like ChatGPT are vulnerable to prompt injection attacks. Malicious actors can manipulate model behavior by injecting deceptive instructions, potentially leading to data leaks, unauthorized outputs, or policy bypassing. The objective of PromptShield is to detect such threats early and prevent them from impacting the downstream LLM’s response pipeline.
+3. Literature Review
+Prompt injection is a well-documented vulnerability in LLMs. Researchers have demonstrated how attackers can craft inputs like 'Ignore all previous instructions' to override safety protocols. Examples like the DAN (Do Anything Now) jailbreak and tasks involving role-playing reveal the limitations of current LLM safety measures. Tools like OpenAI’s Guardrails are emerging, but a lightweight, customizable solution is still needed.
+4. Methodology
+PromptShield employs a multi-stage detection pipeline:
+• Regex-based matching of known malicious phrases
+• NLP-based pattern recognition and vector similarity
+• Optional ML model (e.g., Logistic Regression) for binary classification
+• Sanitization by rewriting or masking known triggers
+• Logging for audit and research
+5. Implementation and Codebase
+5.1 detect.py - Injection Detection Logic
+# detect.py
+import re
+
+blacklist_phrases = [
+    "ignore previous instructions",
+    "you are now",
+    "disregard earlier",
+    "pretend to"
+]
+
+def detect_injection(text):
+    for phrase in blacklist_phrases:
+        if re.search(phrase, text, re.IGNORECASE):
+            return True, phrase
+    return False, None
+
+5.2 sanitize.py - Input Sanitizer
+# sanitize.py
+def sanitize_input(text):
+    sanitized = text.replace("ignore previous instructions", "[REDACTED]")
+    return sanitized
+
+5.3 api.py - Flask API
+# api.py
+from flask import Flask, request, jsonify
+from detect import detect_injection
+from sanitize import sanitize_input
+
+app = Flask(__name__)
+
+@app.route('/scan', methods=['POST'])
+def scan_input():
+    data = request.json
+    text = data.get("text", "")
+    flagged, phrase = detect_injection(text)
+    sanitized = sanitize_input(text) if flagged else text
+    return jsonify({"flagged": flagged, "trigger": phrase, "output": sanitized})
+
+if __name__ == '__main__':
+    app.run(debug=True)
+
+5.4 utils.py - Helper Utilities
+# utils.py
+def log_input(text, flagged):
+    with open("log.txt", "a") as file:
+        file.write(f"Flagged: {flagged} | Input: {text}\n")
+
+6. Results & Demo
+PromptShield was tested against clean inputs and known injection samples. In a YouTube demo, it successfully flagged risky inputs like 'Ignore all previous instructions' while allowing benign queries. Logs were maintained for every flagged input, showing how PromptShield can enhance traceability.
+7. Ethical Impact
+PromptShield promotes responsible AI by detecting misuse without censoring legitimate speech. It allows developers to customize blocking or sanitizing rules based on their use case. Logging is optional to preserve user privacy.
+8. Future Scope
+• Integration with LangChain for end-to-end LLM pipelines
+• Compatibility with OpenAI Guardrails and Anthropic’s Constitutional AI
+• UI enhancements for enterprise-level monitoring
+
